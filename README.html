@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>思念传递器</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        /* 马卡龙配色方案 */
+        :root {
+            --bg-color: #FFF5F7;      /* 浅樱花粉背景 */
+            --btn-color: #FFB7C5;     /* 亮粉马卡龙 */
+            --overlay-color: #98D8D8; /* 蒂芙尼蓝马卡龙 */
+            --text-white: #FFFFFF;
+            --secondary-mint: #C1E1C1; /* 薄荷绿 */
+        }
+
+        body, html { 
+            margin: 0; padding: 0; height: 100%; overflow: hidden; 
+            background-color: var(--bg-color); 
+            font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+        }
+
+        /* 主页面布局 */
+        .main-container {
+            display: flex; flex-direction: column; align-items: center; 
+            justify-content: center; height: 100%;
+        }
+
+        /* 核心想念按钮 */
+        .miss-btn {
+            width: 180px; height: 180px; border-radius: 50%;
+            background-color: var(--btn-color);
+            border: 8px solid white;
+            color: white; font-size: 28px; font-weight: bold;
+            box-shadow: 0 10px 25px rgba(255, 183, 197, 0.6);
+            cursor: pointer; transition: all 0.2s ease;
+            display: flex; align-items: center; justify-content: center;
+        }
+
+        .miss-btn:active { transform: scale(0.92); box-shadow: 0 5px 10px rgba(255, 183, 197, 0.4); }
+
+        /* 全屏情话层 */
+        #love-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: var(--overlay-color);
+            display: none; flex-direction: column; align-items: center;
+            justify-content: center; z-index: 999; color: white;
+            padding: 40px; box-sizing: border-box; text-align: center;
+            animation: fadeIn 0.5s ease;
+        }
+
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        .love-content { font-size: 32px; line-height: 1.6; margin-bottom: 50px; font-weight: 600; text-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+
+        .close-btn {
+            background-color: white; color: var(--overlay-color);
+            border: none; padding: 15px 50px; border-radius: 30px;
+            font-size: 20px; font-weight: bold; cursor: pointer;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+
+        .hint { margin-top: 30px; color: #DB7093; font-weight: 500; }
+    </style>
+</head>
+<body>
+
+    <div class="main-container">
+        <button class="miss-btn" onclick="sendMiss()">想念</button>
+        <p class="hint">点击圆圈，传递这份甜</p>
+    </div>
+
+    <div id="love-overlay">
+        <div class="love-content" id="love-text"></div>
+        <button class="close-btn" onclick="closeOverlay()">我也想你 ❤️</button>
+    </div>
+
+    <script>
+        // 初始化 Supabase
+        const supabaseUrl = 'https://vvoiiuymiuemgopqfmhl.supabase.co';
+        const supabaseKey = 'sb_publishable_Hz-Fatm_nlKMZTxlJTgvbg_uOMo-qPH';
+        const _supabase = supabase.createClient(supabaseUrl, supabaseKey);
+
+        // 生成临时的用户ID，区分是谁发的
+        const myUserId = localStorage.getItem('myUserId') || 'User_' + Math.random().toString(36).substr(2, 5);
+        localStorage.setItem('myUserId', myUserId);
+
+        const quotes = [
+            "如果你在，空气都是马卡龙味的。",
+            "忙里偷闲想你，是今天最有意义的事。",
+            "别动！你刚才被我的思念远程击中了。",
+            "我见众生皆草木，唯独见你是青山。",
+            "今日进度：想你 (100/100)。",
+            "山河远阔，人间烟火，无一是你，无一不是你。"
+        ];
+
+        // 1. 发送逻辑
+        async function sendMiss() {
+            const randomMsg = quotes[Math.floor(Math.random() * quotes.length)];
+            const { error } = await _supabase.from('interactions').insert([
+                { sender_name: myUserId, message: randomMsg }
+            ]);
+            if (!error) {
+                const btn = document.querySelector('.miss-btn');
+                btn.innerText = "已送达";
+                setTimeout(() => btn.innerText = "想念", 2000);
+            } else {
+                console.error("发送失败:", error);
+            }
+        }
+
+        // 2. 实时监听对方信号
+        _supabase.channel('love-channel')
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'interactions' }, (payload) => {
+            if (payload.new.sender_name !== myUserId) {
+                receiveMiss(payload.new.message);
+            }
+        })
+        .subscribe();
+
+        // 3. 接收逻辑
+        function receiveMiss(msg) {
+            document.getElementById('love-text').innerText = msg;
+            document.getElementById('love-overlay').style.display = 'flex';
+            
+            // 触发马卡龙心跳式震动
+            if (navigator.vibrate) {
+                navigator.vibrate([200, 100, 200, 100, 400]);
+            }
+        }
+
+        function closeOverlay() {
+            document.getElementById('love-overlay').style.display = 'none';
+        }
+    </script>
+</body>
+</html>
